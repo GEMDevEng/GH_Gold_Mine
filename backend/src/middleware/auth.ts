@@ -1,0 +1,151 @@
+import { Request, Response, NextFunction } from 'express';
+import { User, IUser } from '../models/User';
+import { verifyToken, extractTokenFromHeader, JWTPayload } from '../utils/jwt';
+import { createError } from './errorHandler';
+
+// Extend Request interface to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: IUser;
+      userId?: string;
+    }
+  }
+}
+
+/**
+ * Middleware to authenticate user using JWT token
+ */
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = extractTokenFromHeader(authHeader);
+
+    if (!token) {
+      return next(createError('Access token required', 401));
+    }
+
+    // Verify token
+    let payload: JWTPayload;
+    try {
+      payload = verifyToken(token);
+    } catch (error) {
+      return next(createError(error instanceof Error ? error.message : 'Invalid token', 401));
+    }
+
+    // Find user in database
+    const user = await User.findById(payload.userId).select('+accessToken');
+    if (!user || !user.isActive) {
+      return next(createError('User not found or inactive', 401));
+    }
+
+    // Attach user to request
+    req.user = user;
+    req.userId = user._id;
+
+    next();
+  } catch (error) {
+    next(createError('Authentication failed', 401));
+  }
+};
+
+/**
+ * Optional authentication middleware - doesn't fail if no token
+ */
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = extractTokenFromHeader(authHeader);
+
+    if (token) {
+      try {
+        const payload = verifyToken(token);
+        const user = await User.findById(payload.userId);
+        
+        if (user && user.isActive) {
+          req.user = user;
+          req.userId = user._id;
+        }
+      } catch (error) {
+        // Ignore token errors in optional auth
+      }
+    }
+
+    next();
+  } catch (error) {
+    // Ignore all errors in optional auth
+    next();
+  }
+};
+
+/**
+ * Middleware to check if user has specific subscription plan
+ */
+export const requireSubscription = (plans: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(createError('Authentication required', 401));
+    }
+
+    if (!plans.includes(req.user.subscription.plan)) {
+      return next(createError(`This feature requires ${plans.join(' or ')} subscription`, 403));
+    }
+
+    if (req.user.subscription.status !== 'active') {
+      return next(createError('Subscription is not active', 403));
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware to check usage limits
+ */
+export const checkUsageLimit = (type: 'apiCalls' | 'analysesRun' | 'projectsDiscovered', limit: number) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next(createError('Authentication required', 401));
+    }
+
+    const usage = req.user.usage[type];
+    if (usage >= limit) {
+      return next(createError(`${type} limit exceeded. Upgrade your plan for higher limits.`, 429));
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware to increment usage counter
+ */
+export const incrementUsage = (type: 'apiCalls' | 'analysesRun' | 'projectsDiscovered') => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (req.user) {
+      try {
+        await req.user.incrementUsage(type);
+      } catch (error) {
+        // Don't fail the request if usage increment fails
+        console.error('Failed to increment usage:', error);
+      }
+    }
+    next();
+  };
+};
+
+/**
+ * Middleware to validate admin access (for future use)
+ */
+export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return next(createError('Authentication required', 401));
+  }
+
+  // For now, we don't have admin roles, but this is here for future expansion
+  // if (req.user.role !== 'admin') {
+  //   return next(createError('Admin access required', 403));
+  // }
+
+  next();
+};

@@ -1,46 +1,17 @@
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Search, BarChart3, Users, Settings } from 'lucide-react';
+import { Search, BarChart3, Users, Settings, User as UserIcon } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthCallback } from './pages/AuthCallback';
+import { LoginButton } from './components/auth/LoginButton';
+import { UserProfile } from './components/auth/UserProfile';
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <h1 className="text-xl font-bold text-primary-600">
-                    GitHub Project Miner
-                  </h1>
-                </div>
-                <nav className="hidden md:ml-8 md:flex md:space-x-8">
-                  <a href="#" className="text-gray-900 hover:text-primary-600 px-3 py-2 text-sm font-medium">
-                    Dashboard
-                  </a>
-                  <a href="#" className="text-gray-500 hover:text-primary-600 px-3 py-2 text-sm font-medium">
-                    Discover
-                  </a>
-                  <a href="#" className="text-gray-500 hover:text-primary-600 px-3 py-2 text-sm font-medium">
-                    Evaluate
-                  </a>
-                  <a href="#" className="text-gray-500 hover:text-primary-600 px-3 py-2 text-sm font-medium">
-                    Profile
-                  </a>
-                </nav>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button className="btn btn-outline btn-sm">
-                  Sign In
-                </button>
-                <button className="btn btn-primary btn-sm">
-                  Get Started
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <Header />
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -49,10 +20,77 @@ function App() {
             <Route path="/discover" element={<Discover />} />
             <Route path="/evaluate" element={<Evaluate />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
         </main>
       </div>
     </Router>
+    </AuthProvider>
+  );
+}
+
+// Header Component
+function Header() {
+  const { user, isAuthenticated } = useAuth();
+  const [showProfile, setShowProfile] = useState(false);
+
+  return (
+    <header className="bg-white shadow-sm border-b">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <h1 className="text-xl font-bold text-primary-600">
+                GitHub Project Miner
+              </h1>
+            </div>
+            <nav className="hidden md:ml-8 md:flex md:space-x-8">
+              <a href="#" className="text-gray-900 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                Dashboard
+              </a>
+              <a href="#" className="text-gray-500 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                Discover
+              </a>
+              <a href="#" className="text-gray-500 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                Evaluate
+              </a>
+              <a href="#" className="text-gray-500 hover:text-primary-600 px-3 py-2 text-sm font-medium">
+                Profile
+              </a>
+            </nav>
+          </div>
+          <div className="flex items-center space-x-4">
+            {isAuthenticated && user ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-700">Welcome, {user.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowProfile(true)}
+                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <UserIcon className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <LoginButton size="sm" variant="outline" />
+                <LoginButton size="sm" variant="primary" className="hidden sm:inline-flex" />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <UserProfile
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+      />
+    </header>
   );
 }
 
@@ -152,7 +190,7 @@ function Dashboard() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="badge badge-success">Score: {project.score}</span>
-                  <button className="btn btn-outline btn-sm">View Details</button>
+                  <button type="button" className="btn btn-outline btn-sm">View Details</button>
                 </div>
               </div>
             ))}

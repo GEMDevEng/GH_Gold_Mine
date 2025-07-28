@@ -27,6 +27,8 @@
   "author": "GEMDevEng",
   "license": "MIT",
   "dependencies": {
+    "@octokit/rest": "^22.0.0",
+    "@octokit/types": "^14.1.0",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -37,6 +39,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.5",
+    "node-cache": "^5.1.2",
     "winston": "^3.17.0"
   },
   "devDependencies": {

@@ -13,6 +13,7 @@ import authRoutes from './routes/auth';
 import projectRoutes from './routes/projects';
 import userRoutes from './routes/users';
 import analysisRoutes from './routes/analysis';
+import repositoryRoutes from './routes/repositories';
 
 // Load environment variables
 dotenv.config();
@@ -78,6 +79,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/analysis', analysisRoutes);
+app.use('/api/repositories', repositoryRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -90,6 +92,7 @@ app.get('/api', (req, res) => {
       projects: '/api/projects',
       users: '/api/users',
       analysis: '/api/analysis',
+      repositories: '/api/repositories',
       health: '/health',
     },
     documentation: 'https://github.com/GEMDevEng/GH_Gold_Mine/blob/main/docs/technical/api-reference.md',

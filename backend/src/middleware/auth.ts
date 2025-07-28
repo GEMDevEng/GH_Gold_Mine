@@ -16,7 +16,7 @@ declare global {
 /**
  * Middleware to authenticate user using JWT token
  */
-export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     const token = extractTokenFromHeader(authHeader);
@@ -48,6 +48,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     next(createError('Authentication failed', 401));
   }
 };
+
+// Alias for backward compatibility
+export const authenticate = authenticateToken;
 
 /**
  * Optional authentication middleware - doesn't fail if no token

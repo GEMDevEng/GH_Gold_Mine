@@ -7,6 +7,12 @@ import {
   userSearchRateLimiter,
   userJobRateLimiter
 } from '../middleware/rateLimiter';
+import {
+  validate,
+  validateDateRange,
+  validateStarRange,
+  validateForkRange
+} from '../middleware/validation';
 
 const router = Router();
 
@@ -24,7 +30,7 @@ router.use(rateLimiter);
  *          lastCommitBefore, lastCommitAfter, hasIssues, hasWiki, hasPages,
  *          archived, fork, sort, order, perPage, page
  */
-router.get('/search', searchRateLimiter, userSearchRateLimiter, repositoryController.searchRepositories.bind(repositoryController));
+router.get('/search', searchRateLimiter, userSearchRateLimiter, validate.searchRepositories, validateDateRange, validateStarRange, validateForkRange, repositoryController.searchRepositories.bind(repositoryController));
 
 /**
  * @route   GET /api/repositories/high-potential
@@ -32,7 +38,7 @@ router.get('/search', searchRateLimiter, userSearchRateLimiter, repositoryContro
  * @access  Private
  * @params  page, limit, minScore, language
  */
-router.get('/high-potential', repositoryController.getHighPotentialRepositories.bind(repositoryController));
+router.get('/high-potential', validate.getHighPotentialRepositories, repositoryController.getHighPotentialRepositories.bind(repositoryController));
 
 /**
  * @route   GET /api/repositories/statistics
@@ -53,14 +59,14 @@ router.get('/rate-limit', repositoryController.getRateLimit.bind(repositoryContr
  * @desc    Get repository details by ID
  * @access  Private
  */
-router.get('/:id', repositoryController.getRepository.bind(repositoryController));
+router.get('/:id', validate.getRepository, repositoryController.getRepository.bind(repositoryController));
 
 /**
  * @route   GET /api/repositories/github/:owner/:repo
  * @desc    Get repository by GitHub owner/repo name
  * @access  Private
  */
-router.get('/github/:owner/:repo', repositoryController.getRepositoryByName.bind(repositoryController));
+router.get('/github/:owner/:repo', validate.getRepositoryByName, repositoryController.getRepositoryByName.bind(repositoryController));
 
 // Collection job routes
 /**

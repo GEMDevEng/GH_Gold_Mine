@@ -5,6 +5,7 @@ import {
   searchRateLimiter,
   userJobRateLimiter
 } from '../middleware/rateLimiter';
+import { validate } from '../middleware/validation';
 import {
   analyzeRepository,
   getRepositoryAnalysis,
@@ -27,6 +28,7 @@ router.use(rateLimiter);
  */
 router.post(
   '/:owner/:repo',
+  validate.analyzeRepository,
   userJobRateLimiter, // Analysis is expensive, use job rate limiting
   analyzeRepository
 );
@@ -38,6 +40,7 @@ router.post(
  */
 router.get(
   '/:owner/:repo',
+  validate.analyzeRepository,
   getRepositoryAnalysis
 );
 

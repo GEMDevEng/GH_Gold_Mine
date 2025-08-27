@@ -1,0 +1,298 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18.x'
+  MONGODB_VERSION: '6.0'
+
+jobs:
+  # Backend Tests
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: password
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongo
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Run TypeScript compilation
+      working-directory: ./backend
+      run: npm run build
+
+    - name: Run linting
+      working-directory: ./backend
+      run: npm run lint || true
+
+    - name: Run unit tests
+      working-directory: ./backend
+      run: npm run test:unit
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://root:password@localhost:27017/test?authSource=admin
+        JWT_SECRET: test-jwt-secret-for-ci-cd-pipeline-testing
+        JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci-cd-pipeline-testing
+
+    - name: Run integration tests
+      working-directory: ./backend
+      run: npm run test:integration
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://root:password@localhost:27017/test?authSource=admin
+        JWT_SECRET: test-jwt-secret-for-ci-cd-pipeline-testing
+        JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci-cd-pipeline-testing
+
+    - name: Generate test coverage
+      working-directory: ./backend
+      run: npm run test:coverage
+      env:
+        NODE_ENV: test
+        MONGODB_URI: mongodb://root:password@localhost:27017/test?authSource=admin
+        JWT_SECRET: test-jwt-secret-for-ci-cd-pipeline-testing
+        JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci-cd-pipeline-testing
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage/lcov.info
+        flags: backend
+        name: backend-coverage
+
+  # Frontend Tests
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Run TypeScript compilation
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Run linting
+      working-directory: ./frontend
+      run: npm run lint || true
+
+    - name: Run tests
+      working-directory: ./frontend
+      run: npm test -- --coverage --watchAll=false
+      env:
+        CI: true
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+  # Security Scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run npm audit for backend
+      working-directory: ./backend
+      run: npm audit --audit-level moderate
+
+    - name: Run npm audit for frontend
+      working-directory: ./frontend
+      run: npm audit --audit-level moderate
+
+  # Build and Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan]
+    if: github.ref == 'refs/heads/develop'
+
+    environment:
+      name: staging
+      url: https://staging.gh-gold-mine.dev
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Build backend
+      working-directory: ./backend
+      run: |
+        npm ci
+        npm run build
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm run build
+      env:
+        REACT_APP_API_URL: https://api-staging.gh-gold-mine.dev
+        REACT_APP_GITHUB_CLIENT_ID: ${{ secrets.STAGING_GITHUB_CLIENT_ID }}
+
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # This could be deploying to Heroku, AWS, DigitalOcean, etc.
+
+  # Build and Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan]
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://gh-gold-mine.dev
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Build backend
+      working-directory: ./backend
+      run: |
+        npm ci --only=production
+        npm run build
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm run build
+      env:
+        REACT_APP_API_URL: https://api.gh-gold-mine.dev
+        REACT_APP_GITHUB_CLIENT_ID: ${{ secrets.PRODUCTION_GITHUB_CLIENT_ID }}
+
+    - name: Run production health checks
+      run: |
+        echo "Running production health checks..."
+        # Add health check commands here
+
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # This could be deploying to Heroku, AWS, DigitalOcean, etc.
+
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "Production deployment successful!"
+        # Add notification logic here (Slack, Discord, email, etc.)
+
+    - name: Rollback on failure
+      if: failure()
+      run: |
+        echo "Production deployment failed, initiating rollback..."
+        # Add rollback logic here
+
+  # Performance Testing
+  performance-test:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Lighthouse CI
+      uses: treosh/lighthouse-ci-action@v10
+      with:
+        configPath: './lighthouse.config.js'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+
+    - name: Run load testing
+      run: |
+        echo "Running load tests against staging environment..."
+        # Add load testing commands here (Artillery, k6, etc.)
+
+  # Cleanup
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+    - name: Clean up temporary resources
+      run: |
+        echo "Cleaning up temporary resources..."
+        # Add cleanup commands here

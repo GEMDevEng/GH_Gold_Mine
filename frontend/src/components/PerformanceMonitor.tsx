@@ -189,6 +189,7 @@ const PerformanceMonitor: React.FC = () => {
             value={timeWindow}
             onChange={(e) => setTimeWindow(parseInt(e.target.value))}
             className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            aria-label="Select time window for performance data"
           >
             <option value={900000}>Last 15 minutes</option>
             <option value={3600000}>Last hour</option>

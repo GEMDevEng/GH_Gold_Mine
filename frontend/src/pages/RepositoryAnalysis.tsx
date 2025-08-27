@@ -1,16 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ChartBarIcon, 
-  CodeBracketIcon, 
+import {
+  ChartBarIcon,
+  CodeBracketIcon,
   BuildingOfficeIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  TrendingUpIcon,
+  LightBulbIcon
 } from '@heroicons/react/24/outline';
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 import apiService from '../services/api';
 import { RepositoryAnalysis, CodeQualityMetrics, BusinessEvaluationMetrics, RevivalPotentialScore } from '../types/api';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Progress } from '../components/ui/Progress';
+
+// Chart colors
+const COLORS = {
+  primary: '#3B82F6',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  info: '#6366F1',
+  secondary: '#6B7280'
+};
+
+const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#8B5CF6', '#EC4899', '#14B8A6'];
 
 const RepositoryAnalysisPage: React.FC = () => {
   const { owner, repo } = useParams<{ owner: string; repo: string }>();
@@ -86,6 +121,64 @@ const RepositoryAnalysisPage: React.FC = () => {
     }
   };
 
+  // Prepare chart data
+  const prepareRadarData = (analysis: RepositoryAnalysis) => {
+    if (!analysis.revivalPotential.factors) return [];
+
+    return [
+      {
+        factor: 'Abandonment',
+        score: analysis.revivalPotential.factors.abandonment || 0,
+        fullMark: 100
+      },
+      {
+        factor: 'Community',
+        score: analysis.revivalPotential.factors.community || 0,
+        fullMark: 100
+      },
+      {
+        factor: 'Technical',
+        score: analysis.revivalPotential.factors.technical || 0,
+        fullMark: 100
+      },
+      {
+        factor: 'Business',
+        score: analysis.revivalPotential.factors.business || 0,
+        fullMark: 100
+      },
+      {
+        factor: 'Market Timing',
+        score: analysis.revivalPotential.factors.marketTiming || 0,
+        fullMark: 100
+      },
+      {
+        factor: 'Competitive Edge',
+        score: analysis.revivalPotential.factors.competitiveAdvantage || 0,
+        fullMark: 100
+      }
+    ];
+  };
+
+  const prepareCodeQualityData = (codeQuality: CodeQualityMetrics) => {
+    return Object.entries(codeQuality)
+      .filter(([key]) => key !== 'overallScore')
+      .map(([key, value]) => ({
+        name: key.replace(/([A-Z])/g, ' $1').trim(),
+        score: value,
+        color: CHART_COLORS[Math.floor(Math.random() * CHART_COLORS.length)]
+      }));
+  };
+
+  const prepareBusinessData = (businessEvaluation: BusinessEvaluationMetrics) => {
+    return Object.entries(businessEvaluation)
+      .filter(([key]) => key !== 'overallScore')
+      .map(([key, value]) => ({
+        name: key.replace(/([A-Z])/g, ' $1').trim(),
+        score: value,
+        color: CHART_COLORS[Math.floor(Math.random() * CHART_COLORS.length)]
+      }));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -102,13 +195,14 @@ const RepositoryAnalysisPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <button
+          <Button
             onClick={() => navigate(-1)}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            variant="ghost"
+            className="mb-4"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             Back
-          </button>
+          </Button>
           
           <div className="flex items-center justify-between">
             <div>
@@ -121,10 +215,11 @@ const RepositoryAnalysisPage: React.FC = () => {
             </div>
             
             {!analysis && (
-              <button
+              <Button
                 onClick={runAnalysis}
                 disabled={analyzing}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                variant="primary"
+                className="flex items-center"
               >
                 {analyzing ? (
                   <>
@@ -137,7 +232,7 @@ const RepositoryAnalysisPage: React.FC = () => {
                     Run Analysis
                   </>
                 )}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -165,13 +260,14 @@ const RepositoryAnalysisPage: React.FC = () => {
             <p className="text-gray-600 mb-6">
               Run an analysis to get detailed insights about this repository's revival potential.
             </p>
-            <button
+            <Button
               onClick={runAnalysis}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center mx-auto"
+              variant="primary"
+              className="flex items-center mx-auto"
             >
               <ChartBarIcon className="h-5 w-5 mr-2" />
               Start Analysis
-            </button>
+            </Button>
           </div>
         )}
 
@@ -229,100 +325,186 @@ const RepositoryAnalysisPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Revival Factors Radar Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <TrendingUpIcon className="h-5 w-5 mr-2" />
+                  Revival Factors Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={prepareRadarData(analysis)}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="factor" />
+                      <PolarRadiusAxis
+                        angle={90}
+                        domain={[0, 100]}
+                        tick={false}
+                      />
+                      <Radar
+                        name="Revival Score"
+                        dataKey="score"
+                        stroke={COLORS.primary}
+                        fill={COLORS.primary}
+                        fillOpacity={0.3}
+                        strokeWidth={2}
+                      />
+                      <Tooltip
+                        formatter={(value: any) => [`${value}/100`, 'Score']}
+                        labelStyle={{ color: '#374151' }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Detailed Metrics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Code Quality Details */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center mb-4">
-                  <CodeBracketIcon className="h-6 w-6 text-blue-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Code Quality Analysis</h3>
-                </div>
-                
-                <div className="space-y-4">
-                  {Object.entries(analysis.codeQuality).map(([key, value]) => {
-                    if (key === 'overallScore') return null;
-                    return (
-                      <div key={key} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}
-                        </span>
-                        <div className="flex items-center">
-                          <div className="w-24 bg-gray-200 rounded-full h-2 mr-3">
-                            <div 
-                              className={`h-2 rounded-full ${getScoreBgColor(value as number).replace('bg-', 'bg-')}`}
-                              style={{ width: `${value}%` }}
-                            ></div>
-                          </div>
-                          <span className={`text-sm font-medium ${getScoreColor(value as number)}`}>
-                            {value}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Code Quality Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CodeBracketIcon className="h-5 w-5 mr-2" />
+                    Code Quality Breakdown
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64 mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={prepareCodeQualityData(analysis.codeQuality)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          fontSize={12}
+                        />
+                        <YAxis domain={[0, 100]} />
+                        <Tooltip
+                          formatter={(value: any) => [`${value}/100`, 'Score']}
+                          labelStyle={{ color: '#374151' }}
+                        />
+                        <Bar dataKey="score" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
 
-              {/* Business Evaluation Details */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center mb-4">
-                  <BuildingOfficeIcon className="h-6 w-6 text-green-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Business Evaluation</h3>
-                </div>
-                
-                <div className="space-y-4">
-                  {Object.entries(analysis.businessEvaluation).map(([key, value]) => {
-                    if (key === 'overallScore') return null;
-                    return (
-                      <div key={key} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}
-                        </span>
-                        <div className="flex items-center">
-                          <div className="w-24 bg-gray-200 rounded-full h-2 mr-3">
-                            <div 
-                              className={`h-2 rounded-full ${getScoreBgColor(value as number).replace('bg-', 'bg-')}`}
-                              style={{ width: `${value}%` }}
-                            ></div>
-                          </div>
-                          <span className={`text-sm font-medium ${getScoreColor(value as number)}`}>
-                            {value}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                  {/* Overall Score Display */}
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className={`text-3xl font-bold ${getScoreColor(analysis.codeQuality.overallScore)}`}>
+                      {analysis.codeQuality.overallScore}
+                    </div>
+                    <div className="text-sm text-gray-500">Overall Quality Score</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Business Evaluation Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                    Business Potential Analysis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64 mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={prepareBusinessData(analysis.businessEvaluation)}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name}: ${value}`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="score"
+                        >
+                          {prepareBusinessData(analysis.businessEvaluation).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: any) => [`${value}/100`, 'Score']}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Overall Score Display */}
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className={`text-3xl font-bold ${getScoreColor(analysis.businessEvaluation.overallScore)}`}>
+                      {analysis.businessEvaluation.overallScore}
+                    </div>
+                    <div className="text-sm text-gray-500">Overall Business Score</div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Recommendations */}
-            {analysis.recommendations.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center mb-4">
-                  <CheckCircleIcon className="h-6 w-6 text-yellow-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Recommendations</h3>
-                </div>
-                
-                <ul className="space-y-3">
-                  {analysis.recommendations.map((recommendation, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3 mt-0.5">
-                        {index + 1}
-                      </span>
-                      <span className="text-gray-700">{recommendation}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* Recommendations and Insights */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Recommendations */}
+              {analysis.recommendations.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <LightBulbIcon className="h-5 w-5 mr-2" />
+                      Recommendations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {analysis.recommendations.map((recommendation, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3 mt-0.5">
+                            {index + 1}
+                          </span>
+                          <span className="text-gray-700">{recommendation}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Analysis Insights */}
+              {analysis.revivalPotential.reasoning && analysis.revivalPotential.reasoning.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CheckCircleIcon className="h-5 w-5 mr-2" />
+                      Key Insights
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {analysis.revivalPotential.reasoning.map((insight, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full mr-3 mt-2"></span>
+                          <span className="text-gray-700">{insight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
             {/* Re-run Analysis */}
             <div className="text-center">
-              <button
+              <Button
                 onClick={runAnalysis}
                 disabled={analyzing}
-                className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto"
+                variant="secondary"
+                className="flex items-center mx-auto"
               >
                 {analyzing ? (
                   <>
@@ -335,7 +517,7 @@ const RepositoryAnalysisPage: React.FC = () => {
                     Re-run Analysis
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         )}

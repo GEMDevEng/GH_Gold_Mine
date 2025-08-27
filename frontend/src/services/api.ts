@@ -1,4 +1,9 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import {
+  createSanitizationMiddleware,
+  sanitizeApiResponse,
+  createSanitizedQueryString
+} from '../utils/apiSanitization';
 
 // Types for API responses
 export interface ApiResponse<T = any> {
@@ -183,23 +188,32 @@ class ApiService {
       },
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor to add auth token and sanitize data
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        return config;
+
+        // Apply sanitization middleware
+        const sanitizationMiddleware = createSanitizationMiddleware();
+        return sanitizationMiddleware(config);
       },
       (error) => {
         return Promise.reject(error);
       }
     );
 
-    // Response interceptor for error handling
+    // Response interceptor for error handling and sanitization
     this.api.interceptors.response.use(
-      (response: AxiosResponse) => response,
+      (response: AxiosResponse) => {
+        // Sanitize response data
+        if (response.data) {
+          response.data = sanitizeApiResponse(response.data);
+        }
+        return response;
+      },
       (error) => {
         if (error.response?.status === 401) {
           // Token expired or invalid
@@ -213,14 +227,15 @@ class ApiService {
 
   // Repository search and discovery
   async searchRepositories(filters: SearchFilters): Promise<SearchResponse> {
+    // The sanitization is now handled by the request interceptor
     const response = await this.api.get<ApiResponse<SearchResponse>>('/repositories/search', {
       params: filters,
     });
-    
+
     if (!response.data.success) {
       throw new Error(response.data.error || 'Search failed');
     }
-    
+
     return response.data.data!;
   }
 

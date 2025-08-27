@@ -3,6 +3,8 @@ import { logger } from '../config/logger';
 import { discoveryEngine } from '../services/discoveryEngine';
 import { dataCollectionPipeline } from '../services/dataCollectionPipeline';
 import { githubApiService } from '../services/githubApi';
+import { cacheService, CacheKeys, CacheTTL } from '../services/cacheService';
+import { performanceService } from '../services/performanceService';
 import { Repository } from '../models/Repository';
 import { SearchResult } from '../models/SearchResult';
 import { DiscoveryJob } from '../models/ApiUsage';
@@ -13,6 +15,8 @@ export class RepositoryController {
    * Search repositories with filters
    */
   async searchRepositories(req: Request, res: Response): Promise<void> {
+    const timer = performanceService.startTimer('searchRepositories');
+
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -40,14 +44,18 @@ export class RepositoryController {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
       };
 
+      // Create cache key from filters
+      const cacheKey = CacheKeys.search(JSON.stringify(filters));
+
       // Check for cached results first
-      const cached = await discoveryEngine.getCachedSearchResults(userId, filters);
+      const cached = await cacheService.get(cacheKey, { prefix: 'search' });
       if (cached) {
         logger.info(`Returning cached search results for user ${userId}`);
+        timer();
         res.json({
           success: true,
           data: {
-            repositories: cached.results.repositories,
+            repositories: cached.repositories,
             totalCount: cached.results.totalCount,
             page: cached.results.page,
             perPage: cached.results.perPage,

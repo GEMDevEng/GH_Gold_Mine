@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Search, BarChart3, Users, Settings } from 'lucide-react';
 import { AuthProvider } from './contexts/AuthContext';
@@ -9,14 +9,22 @@ import RepositoryDetail from './pages/RepositoryDetail';
 import UserDashboard from './pages/UserDashboard';
 import { Navigation } from './components/layout/Navigation';
 import { PageLayout } from './components/layout/PageLayout';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Button } from './components/ui';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Button, ToastProvider, ErrorBoundary } from './components/ui';
+import { SecurityMiddleware } from './utils/security';
 
 function App() {
+  // Initialize security middleware on app start
+  useEffect(() => {
+    SecurityMiddleware.initialize();
+  }, []);
+
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Navigation />
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
 
           {/* Main Content */}
           <main>
@@ -32,9 +40,11 @@ function App() {
               <Route path="/auth/callback" element={<AuthCallback />} />
             </Routes>
           </main>
-        </div>
-      </Router>
-    </AuthProvider>
+            </div>
+          </Router>
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

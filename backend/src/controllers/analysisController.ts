@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { Request, Response } from 'express';
 import { logger } from '../config/logger';
 import { analysisEngine } from '../services/analysisEngine';

@@ -45,6 +45,16 @@ class AuthService {
     this.githubClientId = process.env.GITHUB_CLIENT_ID || '';
     this.githubClientSecret = process.env.GITHUB_CLIENT_SECRET || '';
 
+    // Security validation
+    if (process.env.NODE_ENV === 'production') {
+      if (this.jwtSecret === 'dev-jwt-secret' || this.jwtRefreshSecret === 'dev-jwt-refresh-secret') {
+        throw new Error('Production JWT secrets must be changed from default values');
+      }
+      if (this.jwtSecret.length < 32 || this.jwtRefreshSecret.length < 32) {
+        throw new Error('Production JWT secrets must be at least 32 characters long');
+      }
+    }
+
     if (!this.githubClientId || !this.githubClientSecret) {
       logger.warn('GitHub OAuth credentials not configured');
     }

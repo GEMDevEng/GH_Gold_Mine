@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { Octokit } from '@octokit/rest';
 import NodeCache from 'node-cache';
 import { logger } from '../config/logger';

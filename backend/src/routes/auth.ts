@@ -4,6 +4,7 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { authService } from '../services/authService';
 import { User } from '../models/User';
 import { logger } from '../config/logger';
+import { validate } from '../middleware/validation';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.get('/github/url', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/auth/github/callback - Handle GitHub OAuth callback
-router.post('/github/callback', asyncHandler(async (req, res) => {
+router.post('/github/callback', validate.githubCallback, asyncHandler(async (req, res) => {
   const { code, state } = req.body;
 
   if (!code) {

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { logger } from '../config/logger';
 import { githubApiService } from './githubApi';
 import { Repository, IRepository } from '../models/Repository';

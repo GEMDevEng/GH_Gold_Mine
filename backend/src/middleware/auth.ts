@@ -18,8 +18,14 @@ declare global {
  */
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Development mode bypass
-    if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
+    // Development mode bypass - only allow in development with explicit flag
+    // This should NEVER be enabled in production
+    if (process.env.NODE_ENV === 'development' &&
+        process.env.BYPASS_AUTH === 'true' &&
+        process.env.ALLOW_DEV_BYPASS === 'true') {
+
+      logger.warn('Using development authentication bypass - NOT FOR PRODUCTION');
+
       // Create a mock user for development
       req.user = {
         _id: 'dev-user-id',

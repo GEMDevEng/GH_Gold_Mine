@@ -353,6 +353,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
                   type="button"
                   onClick={() => updateFilter('language', undefined)}
                   className="ml-1 hover:text-red-600"
+                  aria-label="Remove language filter"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -365,6 +366,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
                   type="button"
                   onClick={() => updateFilter('minStars', undefined)}
                   className="ml-1 hover:text-red-600"
+                  aria-label="Remove minimum stars filter"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -377,6 +379,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
                   type="button"
                   onClick={() => updateFilter('maxStars', undefined)}
                   className="ml-1 hover:text-red-600"
+                  aria-label="Remove maximum stars filter"
                 >
                   <X className="w-3 h-3" />
                 </button>

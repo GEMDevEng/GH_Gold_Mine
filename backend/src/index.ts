@@ -7,6 +7,8 @@ import { connectDatabase } from './config/database';
 import { logger } from './config/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import { productionSecurity, corsConfig } from './middleware/security';
+import { performanceMiddleware } from './services/performanceService';
 import {
   apiPerformanceMiddleware,
   memoryTrackingMiddleware,
@@ -21,6 +23,7 @@ import userRoutes from './routes/users';
 import analysisRoutes from './routes/analysis';
 import repositoryRoutes from './routes/repositories';
 import monitoringRoutes from './routes/monitoring';
+import performanceRoutes from './routes/performance';
 
 // Load environment variables
 dotenv.config();
@@ -29,16 +32,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
+if (process.env.NODE_ENV === 'production') {
+  app.use(productionSecurity);
+} else {
+  // Development security (less restrictive)
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
     },
-  },
-}));
+  }));
+}
 
 // Rate limiting
 const limiter = rateLimit({
@@ -54,18 +62,24 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+if (process.env.NODE_ENV === 'production') {
+  app.use(cors(corsConfig));
+} else {
+  // Development CORS (more permissive)
+  app.use(cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }));
+}
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Performance monitoring middleware
+app.use(performanceMiddleware);
 app.use(apiPerformanceMiddleware);
 app.use(memoryTrackingMiddleware);
 app.use(rateLimitTrackingMiddleware);
@@ -93,6 +107,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/performance', performanceRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {

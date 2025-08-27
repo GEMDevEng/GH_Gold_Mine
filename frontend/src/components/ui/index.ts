@@ -37,3 +37,18 @@ export type { AlertProps } from './Alert';
 // Tabs components
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export type { TabsProps, TabsListProps, TabsTriggerProps, TabsContentProps } from './Tabs';
+
+// Form components
+export { Form, FormField, FormMessage, useForm } from './Form';
+export type { FormProps, FormFieldProps, FormMessageProps, ValidationRule, FieldError, FormState } from './Form';
+
+// Error Boundary components
+export { ErrorBoundary, useErrorHandler, withErrorBoundary } from './ErrorBoundary';
+
+// Toast components
+export { ToastProvider, useToast, useToastHelpers, toast } from './Toast';
+export type { Toast, ToastProviderProps } from './Toast';
+
+// Validated Input components
+export { ValidatedInput, EmailInput, PasswordInput, SearchInput, NumberInput } from './ValidatedInput';
+export type { ValidatedInputProps } from './ValidatedInput';

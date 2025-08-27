@@ -24,7 +24,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     language: '',
     minStars: 10,
     maxStars: 10000,
-    sort: 'stars',
+    minRevivalScore: 0,
+    maxRevivalScore: 100,
+    recommendation: '',
+    sort: 'revival-score',
     order: 'desc',
     perPage: 20,
     page: 1,
@@ -92,10 +95,13 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   ];
 
   const sortOptions = [
+    { value: 'revival-score', label: 'Revival Score' },
     { value: 'stars', label: 'Stars' },
     { value: 'forks', label: 'Forks' },
     { value: 'updated', label: 'Recently updated' },
     { value: 'created', label: 'Recently created' },
+    { value: 'code-quality', label: 'Code Quality' },
+    { value: 'community-engagement', label: 'Community Engagement' },
   ];
 
   const orderOptions = [
@@ -133,6 +139,9 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     filters.language ||
     filters.minStars ||
     filters.maxStars ||
+    filters.minRevivalScore ||
+    filters.maxRevivalScore ||
+    filters.recommendation ||
     filters.minForks ||
     filters.maxForks ||
     filters.lastCommitBefore ||
@@ -167,6 +176,19 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           onChange={(e) => updateFilter('language', e.target.value || undefined)}
         />
 
+        <Select
+          label="Revival Potential"
+          options={[
+            { value: '', label: 'All levels' },
+            { value: 'high', label: 'High (80-100)' },
+            { value: 'medium', label: 'Medium (50-79)' },
+            { value: 'low', label: 'Low (20-49)' },
+            { value: 'not-recommended', label: 'Not Recommended (0-19)' },
+          ]}
+          value={filters.recommendation || ''}
+          onChange={(e) => updateFilter('recommendation', e.target.value || undefined)}
+        />
+
         <Input
           label="Min Stars"
           type="number"
@@ -175,27 +197,44 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           onChange={(e) => updateFilter('minStars', e.target.value ? parseInt(e.target.value) : undefined)}
         />
 
-        <Input
-          label="Max Stars"
-          type="number"
-          placeholder="e.g., 10000"
-          value={filters.maxStars?.toString() || ''}
-          onChange={(e) => updateFilter('maxStars', e.target.value ? parseInt(e.target.value) : undefined)}
-        />
-
         <Select
-          label="Last Commit"
+          label="Sort By"
           options={[
-            { value: '', label: 'Any time' },
-            { value: '1w', label: 'Last week' },
-            { value: '1m', label: 'Last month' },
-            { value: '3m', label: 'Last 3 months' },
-            { value: '6m', label: 'Last 6 months' },
-            { value: '1y', label: 'Last year' },
+            { value: 'revival-score', label: 'Revival Score' },
+            { value: 'stars', label: 'Stars' },
+            { value: 'forks', label: 'Forks' },
+            { value: 'updated', label: 'Recently Updated' },
+            { value: 'created', label: 'Recently Created' },
+            { value: 'code-quality', label: 'Code Quality' },
           ]}
-          value=""
-          onChange={(e) => handleLastCommitChange(e.target.value)}
+          value={filters.sort || 'revival-score'}
+          onChange={(e) => updateFilter('sort', e.target.value)}
         />
+      </div>
+
+      {/* Revival Score Range */}
+      <div className="bg-blue-50 p-4 rounded-lg">
+        <h4 className="text-sm font-medium text-blue-900 mb-3">Revival Score Range</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Min Revival Score"
+            type="number"
+            min="0"
+            max="100"
+            placeholder="0"
+            value={filters.minRevivalScore?.toString() || ''}
+            onChange={(e) => updateFilter('minRevivalScore', e.target.value ? parseInt(e.target.value) : undefined)}
+          />
+          <Input
+            label="Max Revival Score"
+            type="number"
+            min="0"
+            max="100"
+            placeholder="100"
+            value={filters.maxRevivalScore?.toString() || ''}
+            onChange={(e) => updateFilter('maxRevivalScore', e.target.value ? parseInt(e.target.value) : undefined)}
+          />
+        </div>
       </div>
 
       {/* Advanced Filters */}

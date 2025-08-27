@@ -2,45 +2,156 @@
 import { logger } from '../config/logger';
 import { githubApiService } from './githubApi';
 import { Repository, IRepository } from '../models/Repository';
-import { 
+import {
   RepositoryAnalysis,
   CodeQualityMetrics,
   BusinessEvaluationMetrics,
   RevivalPotentialScore
 } from '../types/github';
+import { performanceMonitor } from './performanceMonitor';
+import { trackAnalysisOperation, trackGitHubApiCall } from '../middleware/performanceMiddleware';
 
 export class AnalysisEngine {
   /**
    * Perform comprehensive analysis of a repository
    */
   async analyzeRepository(owner: string, repo: string): Promise<RepositoryAnalysis> {
+    const analysisStartTime = Date.now();
+    const repositoryName = `${owner}/${repo}`;
+    let githubApiCalls = 0;
+    let githubApiDuration = 0;
+    let databaseQueries = 0;
+    let databaseDuration = 0;
+
+    const phases = {
+      dataCollection: 0,
+      codeQualityAnalysis: 0,
+      revivalPotentialScoring: 0,
+      businessEvaluation: 0,
+      recommendationGeneration: 0,
+    };
+
     try {
-      logger.info(`Starting analysis for ${owner}/${repo}`);
+      logger.info(`Starting analysis for ${repositoryName}`);
 
-      // Get repository data
-      const repoData = await githubApiService.getRepositoryMetrics(owner, repo);
-      const activity = await githubApiService.getRepositoryActivity(owner, repo);
+      // Data Collection Phase
+      const { result: repoData, duration: dataCollectionTime1 } = await trackAnalysisOperation(
+        'data_collection_repo',
+        () => trackGitHubApiCall('getRepositoryMetrics', () => {
+          githubApiCalls++;
+          return githubApiService.getRepositoryMetrics(owner, repo);
+        })
+      );
+      githubApiDuration += dataCollectionTime1;
 
-      // Perform different types of analysis
-      const codeQuality = await this.analyzeCodeQuality(owner, repo, repoData);
-      const businessEvaluation = await this.evaluateBusinessPotential(repoData, activity);
-      const revivalPotential = await this.calculateRevivalPotential(repoData, activity, codeQuality, businessEvaluation);
+      const { result: activity, duration: dataCollectionTime2 } = await trackAnalysisOperation(
+        'data_collection_activity',
+        () => trackGitHubApiCall('getRepositoryActivity', () => {
+          githubApiCalls++;
+          return githubApiService.getRepositoryActivity(owner, repo);
+        })
+      );
+      githubApiDuration += dataCollectionTime2;
+      phases.dataCollection = dataCollectionTime1 + dataCollectionTime2;
+
+      // Code Quality Analysis Phase
+      const { result: codeQuality, duration: codeQualityTime } = await trackAnalysisOperation(
+        'code_quality_analysis',
+        () => this.analyzeCodeQuality(owner, repo, repoData)
+      );
+      phases.codeQualityAnalysis = codeQualityTime;
+
+      // Business Evaluation Phase
+      const { result: businessEvaluation, duration: businessTime } = await trackAnalysisOperation(
+        'business_evaluation',
+        () => this.evaluateBusinessPotential(repoData, activity)
+      );
+      phases.businessEvaluation = businessTime;
+
+      // Revival Potential Scoring Phase
+      const { result: revivalPotential, duration: revivalTime } = await trackAnalysisOperation(
+        'revival_potential_scoring',
+        () => this.calculateRevivalPotential(repoData, activity, codeQuality, businessEvaluation)
+      );
+      phases.revivalPotentialScoring = revivalTime;
+
+      // Recommendation Generation Phase
+      const { result: recommendations, duration: recommendationTime } = await trackAnalysisOperation(
+        'recommendation_generation',
+        () => Promise.resolve(this.generateRecommendations(codeQuality, businessEvaluation, revivalPotential))
+      );
+      phases.recommendationGeneration = recommendationTime;
 
       const analysis: RepositoryAnalysis = {
-        repositoryId: `${owner}/${repo}`,
+        repositoryId: repositoryName,
         analyzedAt: new Date(),
         codeQuality,
         businessEvaluation,
         revivalPotential,
-        recommendations: this.generateRecommendations(codeQuality, businessEvaluation, revivalPotential),
+        recommendations,
         summary: this.generateAnalysisSummary(codeQuality, businessEvaluation, revivalPotential)
       };
 
-      logger.info(`Analysis completed for ${owner}/${repo} with score: ${revivalPotential.score}`);
+      const totalDuration = Date.now() - analysisStartTime;
+
+      // Record comprehensive performance data
+      performanceMonitor.recordAnalysisPerformance({
+        repositoryId: repositoryName,
+        repositoryName,
+        totalDuration,
+        phases,
+        githubApiCalls,
+        githubApiDuration,
+        databaseQueries,
+        databaseDuration,
+        memoryUsage: {
+          heapUsed: process.memoryUsage().heapUsed,
+          heapTotal: process.memoryUsage().heapTotal,
+          external: process.memoryUsage().external,
+        },
+        success: true,
+        timestamp: new Date(),
+      });
+
+      logger.info(`Analysis completed for ${repositoryName}`, {
+        score: revivalPotential.score,
+        duration: totalDuration,
+        githubApiCalls,
+        phases,
+      });
+
       return analysis;
 
     } catch (error) {
-      logger.error(`Analysis failed for ${owner}/${repo}:`, error);
+      const totalDuration = Date.now() - analysisStartTime;
+
+      // Record failed analysis performance data
+      performanceMonitor.recordAnalysisPerformance({
+        repositoryId: repositoryName,
+        repositoryName,
+        totalDuration,
+        phases,
+        githubApiCalls,
+        githubApiDuration,
+        databaseQueries,
+        databaseDuration,
+        memoryUsage: {
+          heapUsed: process.memoryUsage().heapUsed,
+          heapTotal: process.memoryUsage().heapTotal,
+          external: process.memoryUsage().external,
+        },
+        success: false,
+        errorType: error instanceof Error ? error.name : 'UnknownError',
+        timestamp: new Date(),
+      });
+
+      logger.error(`Analysis failed for ${repositoryName}:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        duration: totalDuration,
+        githubApiCalls,
+        phases,
+      });
+
       throw error;
     }
   }

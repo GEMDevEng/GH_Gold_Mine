@@ -7,6 +7,12 @@ import { connectDatabase } from './config/database';
 import { logger } from './config/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import {
+  apiPerformanceMiddleware,
+  memoryTrackingMiddleware,
+  errorTrackingMiddleware,
+  rateLimitTrackingMiddleware
+} from './middleware/performanceMiddleware';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -14,6 +20,7 @@ import projectRoutes from './routes/projects';
 import userRoutes from './routes/users';
 import analysisRoutes from './routes/analysis';
 import repositoryRoutes from './routes/repositories';
+import monitoringRoutes from './routes/monitoring';
 
 // Load environment variables
 dotenv.config();
@@ -58,6 +65,11 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Performance monitoring middleware
+app.use(apiPerformanceMiddleware);
+app.use(memoryTrackingMiddleware);
+app.use(rateLimitTrackingMiddleware);
+
 // Logging middleware
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path} - ${req.ip}`);
@@ -80,6 +92,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/repositories', repositoryRoutes);
+app.use('/api/monitoring', monitoringRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -101,6 +114,7 @@ app.get('/api', (req, res) => {
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);
+app.use(errorTrackingMiddleware);
 app.use(errorHandler);
 
 // Start server

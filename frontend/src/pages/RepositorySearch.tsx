@@ -331,15 +331,42 @@ export const RepositorySearch: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-2 ml-4">
-                    <img 
-                      src={repo.owner.avatar} 
-                      alt={repo.owner.login}
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div className="text-sm">
-                      <div className="font-medium text-gray-900">{repo.owner.login}</div>
-                      <div className="text-gray-500">{repo.owner.type}</div>
+                  <div className="flex flex-col items-end space-y-2 ml-4">
+                    <div className="flex items-center space-x-2">
+                      <img
+                        src={repo.owner.avatar}
+                        alt={repo.owner.login}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900">{repo.owner.login}</div>
+                        <div className="text-gray-500">{repo.owner.type}</div>
+                      </div>
+                    </div>
+
+                    {/* Code Quality Indicator */}
+                    {repo.analysis?.codeQuality && (
+                      <div className="text-xs text-gray-500">
+                        Code Quality: {repo.analysis.codeQuality.overallScore}/100
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex space-x-2">
+                      <a
+                        href={`/repository/${repo.owner.login}/${repo.name}`}
+                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      >
+                        View Details
+                      </a>
+                      <a
+                        href={repo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                      >
+                        GitHub
+                      </a>
                     </div>
                   </div>
                 </div>

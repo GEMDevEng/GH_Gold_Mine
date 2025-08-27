@@ -430,6 +430,175 @@ class ApiService {
 
     return response.data.data!;
   }
+
+  // Repository Details
+  async getRepository(fullName: string): Promise<Repository> {
+    const response = await this.api.get<ApiResponse<Repository>>(`/repositories/${encodeURIComponent(fullName)}`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get repository');
+    }
+
+    return response.data.data!;
+  }
+
+  async saveRepository(repositoryId: string): Promise<void> {
+    const response = await this.api.post<ApiResponse<void>>(`/repositories/${repositoryId}/save`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to save repository');
+    }
+  }
+
+  async unsaveRepository(repositoryId: string): Promise<void> {
+    const response = await this.api.delete<ApiResponse<void>>(`/repositories/${repositoryId}/save`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to unsave repository');
+    }
+  }
+
+  // Repository Analysis
+  async getRepositoryAnalysis(fullName: string): Promise<RepositoryAnalysis> {
+    const response = await this.api.get<ApiResponse<RepositoryAnalysis>>(`/analysis/${encodeURIComponent(fullName)}`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get repository analysis');
+    }
+
+    return response.data.data!;
+  }
+
+  async runRepositoryAnalysis(fullName: string): Promise<RepositoryAnalysis> {
+    const response = await this.api.post<ApiResponse<RepositoryAnalysis>>(`/analysis/${encodeURIComponent(fullName)}`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to run repository analysis');
+    }
+
+    return response.data.data!;
+  }
+
+  // User Dashboard Methods
+  async getCurrentUser(): Promise<any> {
+    const response = await this.api.get<ApiResponse<any>>('/auth/me');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get current user');
+    }
+
+    return response.data.data!;
+  }
+
+  async completeGitHubAuth(code: string): Promise<any> {
+    const response = await this.api.post<ApiResponse<any>>('/auth/github/callback', { code });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Authentication failed');
+    }
+
+    return response.data.data!;
+  }
+
+  async logout(): Promise<void> {
+    const response = await this.api.post<ApiResponse<void>>('/auth/logout');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Logout failed');
+    }
+  }
+
+  async updateUserProfile(userData: any): Promise<any> {
+    const response = await this.api.put<ApiResponse<any>>('/auth/me', userData);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to update profile');
+    }
+
+    return response.data.data!;
+  }
+
+  async getSavedRepositories(): Promise<Repository[]> {
+    const response = await this.api.get<ApiResponse<Repository[]>>('/users/saved-repositories');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get saved repositories');
+    }
+
+    return response.data.data!;
+  }
+
+  async getAnalysisHistory(): Promise<any[]> {
+    const response = await this.api.get<ApiResponse<any[]>>('/users/analysis-history');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get analysis history');
+    }
+
+    return response.data.data!;
+  }
+
+  async getUsageStats(): Promise<any> {
+    const response = await this.api.get<ApiResponse<any>>('/auth/usage');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get usage statistics');
+    }
+
+    return response.data.data!;
+  }
+
+  async getPersonalizedRecommendations(): Promise<Repository[]> {
+    const response = await this.api.get<ApiResponse<Repository[]>>('/users/recommendations');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get recommendations');
+    }
+
+    return response.data.data!;
+  }
+
+  // Performance Monitoring Methods
+  async getPerformanceMetrics(timeWindow?: number): Promise<any> {
+    const params = timeWindow ? { timeWindow } : {};
+    const response = await this.api.get<ApiResponse<any>>('/monitoring/metrics', { params });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get performance metrics');
+    }
+
+    return response.data.data!;
+  }
+
+  async getPerformanceAlerts(): Promise<any> {
+    const response = await this.api.get<ApiResponse<any>>('/monitoring/alerts');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get performance alerts');
+    }
+
+    return response.data.data!;
+  }
+
+  async getAnalysisBaseline(): Promise<any> {
+    const response = await this.api.get<ApiResponse<any>>('/monitoring/analysis-baseline');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get analysis baseline');
+    }
+
+    return response.data.data!;
+  }
+
+  async getSystemStats(): Promise<any> {
+    const response = await this.api.get<ApiResponse<any>>('/monitoring/system-stats');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get system stats');
+    }
+
+    return response.data.data!;
+  }
 }
 
 export const apiService = new ApiService();

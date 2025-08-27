@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { User, IUser } from '../models/User';
-import { verifyToken, extractTokenFromHeader, JWTPayload } from '../utils/jwt';
+import { authService } from '../services/authService';
 import { createError } from './errorHandler';
 
 // Extend Request interface to include user
@@ -50,23 +50,26 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       return next();
     }
 
+    // Extract token from Authorization header or cookies
     const authHeader = req.headers.authorization;
-    const token = extractTokenFromHeader(authHeader);
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : req.cookies?.accessToken;
 
     if (!token) {
       return next(createError('Access token required', 401));
     }
 
-    // Verify token
-    let payload: JWTPayload;
+    // Verify token using authService
+    let tokenData: { userId: string };
     try {
-      payload = verifyToken(token);
+      tokenData = await authService.verifyAccessToken(token);
     } catch (error) {
       return next(createError(error instanceof Error ? error.message : 'Invalid token', 401));
     }
 
     // Find user in database
-    const user = await User.findById(payload.userId).select('+accessToken');
+    const user = await User.findById(tokenData.userId).select('-githubAccessToken');
     if (!user || !user.isActive) {
       return next(createError('User not found or inactive', 401));
     }
@@ -89,14 +92,17 @@ export const authenticate = authenticateToken;
  */
 export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Extract token from Authorization header or cookies
     const authHeader = req.headers.authorization;
-    const token = extractTokenFromHeader(authHeader);
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : req.cookies?.accessToken;
 
     if (token) {
       try {
-        const payload = verifyToken(token);
-        const user = await User.findById(payload.userId);
-        
+        const tokenData = await authService.verifyAccessToken(token);
+        const user = await User.findById(tokenData.userId).select('-githubAccessToken');
+
         if (user && user.isActive) {
           req.user = user;
           req.userId = user._id;

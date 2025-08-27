@@ -5,6 +5,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { AuthCallback } from './pages/AuthCallback';
 import { RepositorySearch } from './pages/RepositorySearch';
 import RepositoryAnalysisPage from './pages/RepositoryAnalysis';
+import RepositoryDetail from './pages/RepositoryDetail';
+import UserDashboard from './pages/UserDashboard';
 import { Navigation } from './components/layout/Navigation';
 import { PageLayout } from './components/layout/PageLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Badge, Button } from './components/ui';
@@ -23,7 +25,9 @@ function App() {
               <Route path="/discover" element={<RepositorySearch />} />
               <Route path="/search" element={<RepositorySearch />} />
               <Route path="/evaluate" element={<Evaluate />} />
+              <Route path="/dashboard" element={<UserDashboard />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/repository/:owner/:repo" element={<RepositoryDetail />} />
               <Route path="/analysis/:owner/:repo" element={<RepositoryAnalysisPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
             </Routes>

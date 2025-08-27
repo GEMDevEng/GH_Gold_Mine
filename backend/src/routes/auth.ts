@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticate, optionalAuth } from '../middleware/auth';
-import { completeGitHubAuth, refreshGitHubUserData } from '../services/githubAuth';
-import { generateTokens, verifyRefreshToken } from '../utils/jwt';
+import { authService } from '../services/authService';
 import { User } from '../models/User';
 import { logger } from '../config/logger';
 
@@ -10,25 +9,21 @@ const router = Router();
 
 // GET /api/auth/github/url - Get GitHub OAuth URL
 router.get('/github/url', asyncHandler(async (req, res) => {
-  const clientId = process.env.GITHUB_CLIENT_ID;
-  const redirectUri = process.env.GITHUB_REDIRECT_URI || 'http://localhost:5173/auth/callback';
+  try {
+    const state = req.query.state as string;
+    const authUrl = authService.generateGitHubAuthUrl(state);
 
-  if (!clientId) {
-    throw createError('GitHub OAuth not configured', 500);
+    res.json({
+      success: true,
+      data: {
+        url: authUrl,
+        state,
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to generate GitHub auth URL:', error);
+    throw createError('Failed to initiate authentication', 500);
   }
-
-  const scope = 'user:email,read:user';
-  const state = Math.random().toString(36).substring(2, 15);
-
-  const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}`;
-
-  res.json({
-    success: true,
-    data: {
-      url: githubUrl,
-      state,
-    },
-  });
 }));
 
 // POST /api/auth/github/callback - Handle GitHub OAuth callback
@@ -40,19 +35,39 @@ router.post('/github/callback', asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = await completeGitHubAuth(code);
+    // Complete GitHub OAuth flow
+    const authResult = await authService.completeGitHubAuth(code);
+
+    // Set secure HTTP-only cookies for tokens
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+    };
+
+    res.cookie('accessToken', authResult.tokens.accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie('refreshToken', authResult.tokens.refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     res.json({
       success: true,
       message: 'Authentication successful',
       data: {
-        user: result.user,
-        tokens: result.tokens,
+        user: authResult.user,
+        isNewUser: authResult.isNewUser,
+        expiresIn: authResult.tokens.expiresIn,
       },
     });
   } catch (error) {
     logger.error('GitHub OAuth callback failed:', error);
-    throw createError('Authentication failed', 401);
+    throw createError(error instanceof Error ? error.message : 'Authentication failed', 401);
   }
 }));
 
@@ -72,17 +87,43 @@ router.get('/me', authenticate, asyncHandler(async (req, res) => {
 
 // POST /api/auth/refresh - Refresh access token
 router.post('/refresh', asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!refreshToken) {
-    throw createError('Refresh token is required', 400);
+    throw createError('Refresh token is required', 401);
   }
 
   try {
-    const { userId } = verifyRefreshToken(refreshToken);
-    const user = await User.findById(userId);
+    const tokens = await authService.refreshAccessToken(refreshToken);
 
-    if (!user || !user.isActive) {
+    // Set new cookies
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+    };
+
+    res.cookie('accessToken', tokens.accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie('refreshToken', tokens.refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    res.json({
+      success: true,
+      data: {
+        expiresIn: tokens.expiresIn,
+      },
+    });
+  } catch (error) {
+    logger.error('Token refresh failed:', error);
+    throw createError(error instanceof Error ? error.message : 'Token refresh failed', 401);
+  }
       throw createError('User not found or inactive', 401);
     }
 
@@ -152,6 +193,36 @@ router.post('/refresh-github', authenticate, asyncHandler(async (req, res) => {
   } catch (error) {
     logger.error('GitHub data refresh failed:', error);
     throw createError('Failed to refresh GitHub data', 500);
+  }
+}));
+
+// POST /api/auth/logout - Logout user
+router.post('/logout', asyncHandler(async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    if (refreshToken) {
+      await authService.logout(refreshToken);
+    }
+
+    // Clear cookies
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    logger.error('Logout failed:', error);
+    // Still return success for logout even if token invalidation fails
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
   }
 }));
 

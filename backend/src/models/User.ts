@@ -16,8 +16,21 @@ export interface IUser extends Document {
   followers: number;
   following: number;
   githubCreatedAt: Date;
-  accessToken: string;
-  refreshToken?: string;
+  githubAccessToken: string;
+  savedRepositories: string[];
+  analysisHistory: Array<{
+    repositoryId: string;
+    repositoryName: string;
+    analysisDate: Date;
+    revivalScore: number;
+    recommendation: string;
+  }>;
+  searchHistory: Array<{
+    query: string;
+    filters: any;
+    searchDate: Date;
+    resultsCount: number;
+  }>;
   preferences: {
     emailNotifications: boolean;
     analysisAlerts: boolean;
@@ -109,15 +122,27 @@ const userSchema = new Schema<IUser>({
     type: Date,
     required: true,
   },
-  accessToken: {
+  githubAccessToken: {
     type: String,
     required: true,
     select: false, // Don't include in queries by default
   },
-  refreshToken: {
+  savedRepositories: [{
     type: String,
-    select: false,
-  },
+  }],
+  analysisHistory: [{
+    repositoryId: { type: String, required: true },
+    repositoryName: { type: String, required: true },
+    analysisDate: { type: Date, required: true },
+    revivalScore: { type: Number, required: true },
+    recommendation: { type: String, required: true },
+  }],
+  searchHistory: [{
+    query: { type: String, required: true },
+    filters: { type: Schema.Types.Mixed, required: true },
+    searchDate: { type: Date, required: true },
+    resultsCount: { type: Number, required: true },
+  }],
   preferences: {
     emailNotifications: {
       type: Boolean,
@@ -182,8 +207,7 @@ const userSchema = new Schema<IUser>({
   timestamps: true,
   toJSON: {
     transform: function(doc: any, ret: any) {
-      delete ret.accessToken;
-      delete ret.refreshToken;
+      delete ret.githubAccessToken;
       delete ret.__v;
       return ret;
     },

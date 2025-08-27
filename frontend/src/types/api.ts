@@ -93,9 +93,16 @@ export interface SearchFilters {
     min?: number;
     max?: number;
   };
+  minRevivalScore?: number;
+  maxRevivalScore?: number;
+  recommendation?: 'high' | 'medium' | 'low' | 'not-recommended';
   revivalPotential?: 'high' | 'medium' | 'low';
-  sortBy?: 'stars' | 'forks' | 'updated' | 'created' | 'revival-score';
+  sortBy?: 'stars' | 'forks' | 'updated' | 'created' | 'revival-score' | 'code-quality' | 'community-engagement';
   sortOrder?: 'asc' | 'desc';
+  sort?: string;
+  order?: 'asc' | 'desc';
+  perPage?: number;
+  page?: number;
 }
 
 // Collection Job Types
@@ -213,4 +220,38 @@ export interface User {
   avatar?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// User Dashboard Types
+export interface AnalysisHistoryEntry {
+  repositoryId: string;
+  repositoryName: string;
+  analysisDate: Date;
+  revivalScore: number;
+  recommendation: string;
+}
+
+export interface UsageStats {
+  usage: {
+    apiCalls: number;
+    analysesRun: number;
+    projectsDiscovered: number;
+    lastResetAt: Date;
+  };
+  limits: {
+    apiCalls: number;
+    analysesRun: number;
+    projectsDiscovered: number;
+  };
+  subscription: {
+    plan: 'free' | 'pro' | 'enterprise';
+    status: 'active' | 'cancelled' | 'expired';
+    startDate: Date;
+    endDate?: Date;
+  };
+  percentages: {
+    apiCalls: number;
+    analysesRun: number;
+    projectsDiscovered: number;
+  };
 }

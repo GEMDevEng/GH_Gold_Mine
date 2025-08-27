@@ -124,21 +124,6 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     logger.error('Token refresh failed:', error);
     throw createError(error instanceof Error ? error.message : 'Token refresh failed', 401);
   }
-      throw createError('User not found or inactive', 401);
-    }
-
-    const tokens = generateTokens(user);
-
-    res.json({
-      success: true,
-      data: {
-        tokens,
-      },
-    });
-  } catch (error) {
-    logger.error('Token refresh failed:', error);
-    throw createError('Invalid refresh token', 401);
-  }
 }));
 
 // POST /api/auth/logout - Logout user

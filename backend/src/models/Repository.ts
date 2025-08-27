@@ -34,6 +34,7 @@ export interface IRepository extends Document {
     concerns: string[];
     recommendation: 'high' | 'medium' | 'low' | 'not-recommended';
   };
+  analysis?: RepositoryAnalysis; // New analysis engine results
   tags: string[];
   isArchived: boolean;
   isFork: boolean;
@@ -43,6 +44,7 @@ export interface IRepository extends Document {
   updatedAt: Date;
   analyzedAt: Date;
   lastSyncAt: Date;
+  lastAnalyzedAt?: Date; // When analysis was last performed
 }
 
 const repositorySchema = new Schema<IRepository>({
@@ -292,6 +294,14 @@ const repositorySchema = new Schema<IRepository>({
     type: Date,
     default: Date.now,
     index: true,
+  },
+  lastAnalyzedAt: {
+    type: Date,
+    index: true,
+  },
+  analysis: {
+    type: Schema.Types.Mixed, // Store the full analysis object
+    default: null,
   },
 }, {
   timestamps: true,

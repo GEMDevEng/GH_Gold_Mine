@@ -60,6 +60,40 @@ class GitHubApiService {
   }
 
   /**
+   * Get repository contents for analysis
+   */
+  async getRepositoryContents(owner: string, repo: string, path: string = ''): Promise<any[]> {
+    const cacheKey = `contents:${owner}/${repo}:${path}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const response = await this.octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path
+      });
+
+      let contents: any[] = [];
+      if (Array.isArray(response.data)) {
+        contents = response.data;
+      } else {
+        contents = [response.data];
+      }
+
+      // Cache for 1 hour
+      this.cache.set(cacheKey, contents, 3600);
+      return contents;
+
+    } catch (error) {
+      logger.warn(`Failed to get repository contents for ${owner}/${repo}:`, error);
+      return [];
+    }
+  }
+
+  /**
    * Get current rate limit status
    */
   async getRateLimit(): Promise<RateLimitInfo> {
@@ -219,6 +253,69 @@ class GitHubApiService {
     }
     
     throw new Error('Max retries exceeded');
+  }
+
+  /**
+   * Calculate code quality score based on repository indicators
+   */
+  private async calculateCodeQualityScore(owner: string, repo: string): Promise<number> {
+    try {
+      let score = 50; // Base score
+
+      // Get repository contents to analyze structure
+      const contents = await this.getRepositoryContents(owner, repo);
+
+      // Check for configuration files that indicate good practices
+      const configFiles = [
+        '.eslintrc', '.eslintrc.js', '.eslintrc.json', '.eslintrc.yml',
+        '.prettierrc', '.prettierrc.js', '.prettierrc.json',
+        'tsconfig.json', 'jsconfig.json',
+        'package.json', 'requirements.txt', 'Cargo.toml', 'go.mod',
+        '.gitignore', '.dockerignore',
+        'Dockerfile', 'docker-compose.yml',
+        '.github/workflows', '.travis.yml', '.gitlab-ci.yml',
+        'jest.config.js', 'vitest.config.js', 'cypress.json'
+      ];
+
+      const fileNames = contents.map(item => item.name.toLowerCase());
+      const hasConfigFiles = configFiles.some(config =>
+        fileNames.some(fileName => fileName.includes(config.toLowerCase()))
+      );
+
+      if (hasConfigFiles) score += 15;
+
+      // Check for test directories/files
+      const hasTests = contents.some(item =>
+        item.name.toLowerCase().includes('test') ||
+        item.name.toLowerCase().includes('spec') ||
+        item.name.toLowerCase().includes('__tests__')
+      );
+
+      if (hasTests) score += 20;
+
+      // Check for organized directory structure
+      const hasSourceDir = contents.some(item =>
+        ['src', 'lib', 'source'].includes(item.name.toLowerCase())
+      );
+
+      if (hasSourceDir) score += 10;
+
+      // Check for documentation directory
+      const hasDocsDir = contents.some(item =>
+        ['docs', 'documentation', 'doc'].includes(item.name.toLowerCase())
+      );
+
+      if (hasDocsDir) score += 10;
+
+      // Penalty for too many files in root (indicates poor organization)
+      if (contents.length > 20) score -= 5;
+
+      return Math.max(0, Math.min(100, score));
+
+    } catch (error) {
+      logger.warn(`Failed to calculate code quality score for ${owner}/${repo}:`, error);
+      return 50; // Default score if analysis fails
+    }
   }
 
   /**
@@ -584,7 +681,9 @@ class GitHubApiService {
     if (quality.hasPrTemplate) docScore += 5;
 
     quality.documentationScore = docScore;
-    quality.codeQualityScore = 50; // Placeholder - would need actual code analysis
+
+    // Calculate code quality score based on available indicators
+    quality.codeQualityScore = await this.calculateCodeQualityScore(owner, repo);
 
     this.cache.set(cacheKey, quality, this.CACHE_TTL * 4); // Cache longer
     return quality;

@@ -1,47 +1,65 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
+import { authenticate } from '../middleware/auth';
+import {
+  rateLimiter,
+  searchRateLimiter,
+  userJobRateLimiter
+} from '../middleware/rateLimiter';
+import {
+  analyzeRepository,
+  getRepositoryAnalysis,
+  batchAnalyzeRepositories,
+  getAnalysisStats
+} from '../controllers/analysisController';
 
 const router = Router();
 
-// POST /api/analysis/trigger
-router.post('/trigger', asyncHandler(async (req, res) => {
-  res.json({
-    success: true,
-    message: 'Trigger analysis endpoint - coming soon',
-    data: {
-      analysisId: 'temp-analysis-id',
-      status: 'queued',
-      estimatedTime: '5 minutes',
-    },
-  });
-}));
+// Apply authentication middleware to all routes
+router.use(authenticate);
 
-// GET /api/analysis/:id
-router.get('/:id', asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  res.json({
-    success: true,
-    message: `Get analysis ${id} endpoint - coming soon`,
-    data: {
-      analysisId: id,
-      status: 'completed',
-      results: null,
-    },
-  });
-}));
+// Apply general rate limiting
+router.use(rateLimiter);
 
-// GET /api/analysis/:id/report
-router.get('/:id/report', asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  res.json({
-    success: true,
-    message: `Get analysis report ${id} endpoint - coming soon`,
-    data: {
-      reportId: id,
-      format: 'json',
-      downloadUrl: null,
-    },
-  });
-}));
+/**
+ * @route POST /api/analysis/:owner/:repo
+ * @desc Analyze a specific repository
+ * @access Private
+ */
+router.post(
+  '/:owner/:repo',
+  userJobRateLimiter, // Analysis is expensive, use job rate limiting
+  analyzeRepository
+);
+
+/**
+ * @route GET /api/analysis/:owner/:repo
+ * @desc Get existing analysis for a repository
+ * @access Private
+ */
+router.get(
+  '/:owner/:repo',
+  getRepositoryAnalysis
+);
+
+/**
+ * @route POST /api/analysis/batch
+ * @desc Batch analyze multiple repositories
+ * @access Private
+ */
+router.post(
+  '/batch',
+  userJobRateLimiter, // Batch operations are expensive
+  batchAnalyzeRepositories
+);
+
+/**
+ * @route GET /api/analysis/stats
+ * @desc Get analysis statistics
+ * @access Private
+ */
+router.get(
+  '/stats',
+  getAnalysisStats
+);
 
 export default router;

@@ -367,6 +367,69 @@ class ApiService {
     
     return response.data.data!;
   }
+
+  // Analysis API methods
+  async analyzeRepository(owner: string, repo: string): Promise<RepositoryAnalysis> {
+    const response = await this.api.post<ApiResponse<RepositoryAnalysis>>(`/analysis/${owner}/${repo}`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to analyze repository');
+    }
+
+    return response.data.data!;
+  }
+
+  async getRepositoryAnalysis(owner: string, repo: string): Promise<RepositoryAnalysis> {
+    const response = await this.api.get<ApiResponse<RepositoryAnalysis>>(`/analysis/${owner}/${repo}`);
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get repository analysis');
+    }
+
+    return response.data.data!;
+  }
+
+  async batchAnalyzeRepositories(repositories: { owner: string; repo: string }[]): Promise<{
+    results: Array<{
+      repository: string;
+      analysis: RepositoryAnalysis;
+      success: boolean;
+    }>;
+    errors: Array<{
+      repository: { owner: string; repo: string };
+      error: string;
+      success: boolean;
+    }>;
+    summary: {
+      total: number;
+      successful: number;
+      failed: number;
+    };
+  }> {
+    const response = await this.api.post<ApiResponse<any>>('/analysis/batch', { repositories });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to batch analyze repositories');
+    }
+
+    return response.data.data!;
+  }
+
+  async getAnalysisStats(): Promise<{
+    totalAnalyzed: number;
+    averageRevivalScore: number;
+    highPotential: number;
+    mediumPotential: number;
+    lowPotential: number;
+  }> {
+    const response = await this.api.get<ApiResponse<any>>('/analysis/stats');
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to get analysis stats');
+    }
+
+    return response.data.data!;
+  }
 }
 
 export const apiService = new ApiService();

@@ -172,3 +172,53 @@ export interface ApiUsageTracking {
   success: boolean;
   error?: string;
 }
+
+// Analysis Engine Types
+export interface RepositoryAnalysis {
+  repositoryId: string;
+  analyzedAt: Date;
+  codeQuality: CodeQualityMetrics;
+  businessEvaluation: BusinessEvaluationMetrics;
+  revivalPotential: RevivalPotentialScore;
+  recommendations: string[];
+  summary: string;
+}
+
+export interface CodeQualityMetrics {
+  complexity: number; // 0-100, higher is better (less complex)
+  maintainability: number; // 0-100
+  testCoverage: number; // 0-100
+  documentation: number; // 0-100
+  codeStyle: number; // 0-100
+  dependencies: number; // 0-100
+  security: number; // 0-100
+  overallScore: number; // 0-100
+}
+
+export interface BusinessEvaluationMetrics {
+  marketDemand: number; // 0-100
+  competitorAnalysis: number; // 0-100
+  userEngagement: number; // 0-100
+  monetizationPotential: number; // 0-100
+  scalabilityScore: number; // 0-100
+  riskAssessment: number; // 0-100
+  overallScore: number; // 0-100
+}
+
+export interface RevivalPotentialScore {
+  score: number; // 0-100
+  recommendation: 'high' | 'medium' | 'low' | 'not-recommended';
+  factors: {
+    abandonment: number; // 0-100
+    community: number; // 0-100
+    technical: number; // 0-100
+    business: number; // 0-100
+    marketTiming?: number; // 0-100
+    competitiveAdvantage?: number; // 0-100
+    revivalComplexity?: number; // 0-100
+    communityReadiness?: number; // 0-100
+  };
+  confidence: number; // 0-100
+  reasoning?: string[]; // Enhanced reasoning for the recommendation
+  weights?: Record<string, number>; // Dynamic weights used in calculation
+}

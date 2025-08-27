@@ -11,6 +11,9 @@
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "postbuild": "cp -r src/public dist/ 2>/dev/null || true",
+    "seed": "ts-node src/scripts/seedDatabase.ts",
+    "test:collection": "ts-node src/scripts/testDataCollection.ts",
+    "test:analysis": "ts-node src/scripts/testEnhancedAnalysis.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "echo \"Linting not configured yet\"",
     "type-check": "tsc --noEmit"

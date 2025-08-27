@@ -18,6 +18,38 @@ declare global {
  */
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Development mode bypass
+    if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
+      // Create a mock user for development
+      req.user = {
+        _id: 'dev-user-id',
+        githubId: 'dev-github-id',
+        username: 'dev-user',
+        email: 'dev@example.com',
+        name: 'Development User',
+        avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
+        isActive: true,
+        subscription: {
+          plan: 'pro',
+          status: 'active',
+        },
+        usage: {
+          apiCalls: 0,
+          analysesRun: 0,
+          projectsDiscovered: 0,
+          lastResetAt: new Date().toISOString(),
+        },
+        preferences: {
+          emailNotifications: true,
+          analysisAlerts: true,
+          weeklyDigest: false,
+          theme: 'light',
+        },
+      } as any;
+      req.userId = 'dev-user-id';
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     const token = extractTokenFromHeader(authHeader);
 

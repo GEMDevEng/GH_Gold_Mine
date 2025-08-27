@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            background: #f9f9f9;
+        }
+        .error {
+            background: #fee;
+            border-color: #fcc;
+            color: #c00;
+        }
+        .success {
+            background: #efe;
+            border-color: #cfc;
+            color: #060;
+        }
+        .loading {
+            background: #fef;
+            border-color: #fcf;
+            color: #606;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitHub Gold Mine - Dashboard API Test</h1>
+    
+    <div class="card">
+        <h2>API Endpoint Tests</h2>
+        <button onclick="testStatistics()">Test /api/repositories/statistics</button>
+        <button onclick="testAnalysisStats()">Test /api/analysis/stats</button>
+        <button onclick="testHighPotential()">Test /api/repositories/high-potential</button>
+        <button onclick="testAllEndpoints()">Test All Endpoints</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        
+        function addResult(title, status, data) {
+            const resultsDiv = document.getElementById('results');
+            const card = document.createElement('div');
+            card.className = `card ${status}`;
+            card.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            resultsDiv.appendChild(card);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function makeRequest(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // No auth header since we're using BYPASS_AUTH=true
+                    }
+                });
+                
+                const data = await response.json();
+                return {
+                    status: response.ok ? 'success' : 'error',
+                    data: data,
+                    httpStatus: response.status
+                };
+            } catch (error) {
+                return {
+                    status: 'error',
+                    data: { error: error.message },
+                    httpStatus: 0
+                };
+            }
+        }
+
+        async function testStatistics() {
+            clearResults();
+            addResult('Testing Statistics Endpoint', 'loading', 'Making request...');
+            
+            const result = await makeRequest('/repositories/statistics');
+            
+            document.getElementById('results').innerHTML = '';
+            addResult(
+                `Statistics Endpoint (HTTP ${result.httpStatus})`, 
+                result.status, 
+                result.data
+            );
+        }
+
+        async function testAnalysisStats() {
+            clearResults();
+            addResult('Testing Analysis Stats Endpoint', 'loading', 'Making request...');
+            
+            const result = await makeRequest('/analysis/stats');
+            
+            document.getElementById('results').innerHTML = '';
+            addResult(
+                `Analysis Stats Endpoint (HTTP ${result.httpStatus})`, 
+                result.status, 
+                result.data
+            );
+        }
+
+        async function testHighPotential() {
+            clearResults();
+            addResult('Testing High Potential Endpoint', 'loading', 'Making request...');
+            
+            const result = await makeRequest('/repositories/high-potential?limit=3');
+            
+            document.getElementById('results').innerHTML = '';
+            addResult(
+                `High Potential Endpoint (HTTP ${result.httpStatus})`, 
+                result.status, 
+                result.data
+            );
+        }
+
+        async function testAllEndpoints() {
+            clearResults();
+            
+            const endpoints = [
+                { name: 'Statistics', path: '/repositories/statistics' },
+                { name: 'Analysis Stats', path: '/analysis/stats' },
+                { name: 'High Potential', path: '/repositories/high-potential?limit=3' }
+            ];
+            
+            for (const endpoint of endpoints) {
+                addResult(`Testing ${endpoint.name}`, 'loading', 'Making request...');
+                
+                const result = await makeRequest(endpoint.path);
+                
+                // Update the last added result
+                const cards = document.querySelectorAll('.card');
+                const lastCard = cards[cards.length - 1];
+                lastCard.className = `card ${result.status}`;
+                lastCard.innerHTML = `
+                    <h3>${endpoint.name} (HTTP ${result.httpStatus})</h3>
+                    <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                `;
+                
+                // Add a small delay between requests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        // Test connection on page load
+        window.onload = function() {
+            addResult('Page Loaded', 'success', 'Ready to test API endpoints. Make sure the backend server is running on localhost:3000');
+        };
+    </script>
+</body>
+</html>

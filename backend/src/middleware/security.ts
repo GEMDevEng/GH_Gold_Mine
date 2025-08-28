@@ -104,21 +104,22 @@ export const ipWhitelist = (allowedIPs: string[] = []) => {
  * Request size limiter middleware
  */
 export const requestSizeLimiter = (maxSizeBytes: number = 1024 * 1024) => { // 1MB default
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const contentLength = parseInt(req.get('content-length') || '0');
-    
+
     if (contentLength > maxSizeBytes) {
-      logger.warn(`Request too large: ${contentLength} bytes`, { 
-        path: req.path, 
+      logger.warn(`Request too large: ${contentLength} bytes`, {
+        path: req.path,
         method: req.method,
         maxAllowed: maxSizeBytes
       });
-      
-      return res.status(413).json({
+
+      res.status(413).json({
         success: false,
         error: 'Request too large',
         message: `Request size exceeds maximum allowed size of ${maxSizeBytes} bytes`,
       });
+      return;
     }
 
     next();
@@ -128,21 +129,22 @@ export const requestSizeLimiter = (maxSizeBytes: number = 1024 * 1024) => { // 1
 /**
  * User agent validation middleware
  */
-export const validateUserAgent = (req: Request, res: Response, next: NextFunction) => {
+export const validateUserAgent = (req: Request, res: Response, next: NextFunction): void => {
   const userAgent = req.get('User-Agent');
-  
+
   if (!userAgent) {
-    logger.warn('Request without User-Agent header', { 
-      path: req.path, 
+    logger.warn('Request without User-Agent header', {
+      path: req.path,
       method: req.method,
       ip: req.ip
     });
-    
-    return res.status(400).json({
+
+    res.status(400).json({
       success: false,
       error: 'Bad request',
       message: 'User-Agent header is required',
     });
+    return;
   }
 
   // Block known malicious user agents
@@ -158,17 +160,18 @@ export const validateUserAgent = (req: Request, res: Response, next: NextFunctio
   ];
 
   if (maliciousPatterns.some(pattern => pattern.test(userAgent))) {
-    logger.warn(`Blocked malicious User-Agent: ${userAgent}`, { 
-      path: req.path, 
+    logger.warn(`Blocked malicious User-Agent: ${userAgent}`, {
+      path: req.path,
       method: req.method,
       ip: req.ip
     });
-    
-    return res.status(403).json({
+
+    res.status(403).json({
       success: false,
       error: 'Access denied',
       message: 'Request blocked',
     });
+    return;
   }
 
   next();
@@ -178,19 +181,20 @@ export const validateUserAgent = (req: Request, res: Response, next: NextFunctio
  * Request method validation middleware
  */
 export const validateRequestMethod = (allowedMethods: string[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!allowedMethods.includes(req.method)) {
-      logger.warn(`Invalid request method: ${req.method}`, { 
-        path: req.path, 
+      logger.warn(`Invalid request method: ${req.method}`, {
+        path: req.path,
         ip: req.ip,
         allowedMethods
       });
-      
-      return res.status(405).json({
+
+      res.status(405).json({
         success: false,
         error: 'Method not allowed',
         message: `Method ${req.method} is not allowed for this endpoint`,
       });
+      return;
     }
 
     next();

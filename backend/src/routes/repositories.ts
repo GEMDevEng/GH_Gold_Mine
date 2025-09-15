@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { repositoryController } from '../controllers/repositoryController';
+import { repositoryController, discoveryController, collectionController } from '../controllers';
 import { authenticate } from '../middleware/auth';
 import {
   rateLimiter,
@@ -30,7 +30,7 @@ router.use(rateLimiter);
  *          lastCommitBefore, lastCommitAfter, hasIssues, hasWiki, hasPages,
  *          archived, fork, sort, order, perPage, page
  */
-router.get('/search', searchRateLimiter, userSearchRateLimiter, validate.searchRepositories, validateDateRange, validateStarRange, validateForkRange, repositoryController.searchRepositories.bind(repositoryController));
+router.get('/search', searchRateLimiter, userSearchRateLimiter, validate.searchRepositories, validateDateRange, validateStarRange, validateForkRange, discoveryController.searchRepositories.bind(discoveryController));
 
 /**
  * @route   GET /api/repositories/high-potential
@@ -52,7 +52,7 @@ router.get('/statistics', repositoryController.getStatistics.bind(repositoryCont
  * @desc    Get GitHub API rate limit status
  * @access  Private
  */
-router.get('/rate-limit', repositoryController.getRateLimit.bind(repositoryController));
+router.get('/rate-limit', collectionController.getRateLimit.bind(collectionController));
 
 /**
  * @route   GET /api/repositories/:id
@@ -75,7 +75,7 @@ router.get('/github/:owner/:repo', validate.getRepositoryByName, repositoryContr
  * @access  Private
  * @body    { name, filters, settings }
  */
-router.post('/jobs', userJobRateLimiter, repositoryController.startCollectionJob.bind(repositoryController));
+router.post('/jobs', userJobRateLimiter, collectionController.startCollectionJob.bind(collectionController));
 
 /**
  * @route   GET /api/repositories/jobs
@@ -83,20 +83,20 @@ router.post('/jobs', userJobRateLimiter, repositoryController.startCollectionJob
  * @access  Private
  * @params  limit
  */
-router.get('/jobs', repositoryController.getUserJobs.bind(repositoryController));
+router.get('/jobs', collectionController.getUserJobs.bind(collectionController));
 
 /**
  * @route   GET /api/repositories/jobs/:jobId
  * @desc    Get collection job status
  * @access  Private
  */
-router.get('/jobs/:jobId', repositoryController.getJobStatus.bind(repositoryController));
+router.get('/jobs/:jobId', collectionController.getJobStatus.bind(collectionController));
 
 /**
  * @route   DELETE /api/repositories/jobs/:jobId
  * @desc    Cancel a collection job
  * @access  Private
  */
-router.delete('/jobs/:jobId', repositoryController.cancelJob.bind(repositoryController));
+router.delete('/jobs/:jobId', collectionController.cancelJob.bind(collectionController));
 
 export default router;

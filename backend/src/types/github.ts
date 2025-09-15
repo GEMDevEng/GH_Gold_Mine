@@ -173,8 +173,7 @@ export interface ApiUsageTracking {
   error?: string;
 }
 
-// Analysis Engine Types
-export interface RepositoryAnalysis {
+export interface RepositoryAnalysisResult {
   repositoryId: string;
   analyzedAt: Date;
   codeQuality: CodeQualityMetrics;

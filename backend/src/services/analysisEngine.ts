@@ -1,9 +1,10 @@
 
 import { logger } from '../config/logger';
 import { githubApiService } from './githubApi';
+import { codeAnalysisService } from './codeAnalysisService';
 import { Repository, IRepository } from '../models/Repository';
 import {
-  RepositoryAnalysis,
+  RepositoryAnalysisResult,
   CodeQualityMetrics,
   BusinessEvaluationMetrics,
   RevivalPotentialScore
@@ -15,7 +16,7 @@ export class AnalysisEngine {
   /**
    * Perform comprehensive analysis of a repository
    */
-  async analyzeRepository(owner: string, repo: string): Promise<RepositoryAnalysis> {
+  async analyzeRepository(owner: string, repo: string): Promise<RepositoryAnalysisResult> {
     const analysisStartTime = Date.now();
     const repositoryName = `${owner}/${repo}`;
     let githubApiCalls = 0;
@@ -82,7 +83,7 @@ export class AnalysisEngine {
       );
       phases.recommendationGeneration = recommendationTime;
 
-      const analysis: RepositoryAnalysis = {
+      const analysis: RepositoryAnalysisResult = {
         repositoryId: repositoryName,
         analyzedAt: new Date(),
         codeQuality,
@@ -157,13 +158,50 @@ export class AnalysisEngine {
   }
 
   /**
-   * Analyze code quality using static analysis
+   * Analyze code quality using Python static analysis tools
    */
   private async analyzeCodeQuality(owner: string, repo: string, repoData: any): Promise<CodeQualityMetrics> {
     try {
+      logger.info(`Starting code quality analysis for ${owner}/${repo}`);
+
+      // Use the new Python-based code analysis service
+      const pythonResults = await codeAnalysisService.analyzeRepository(owner, repo);
+
+      if (pythonResults) {
+        logger.info(`Code analysis completed using Python tools for ${owner}/${repo}`);
+
+        // Convert Python results to the expected CodeQualityMetrics format
+        return {
+          complexity: pythonResults.complexity.complexity_score,
+          maintainability: Math.round(pythonResults.aggregate.code_quality_score * 0.8), // Adjusted weighting
+          testCoverage: this.estimateTestCoverageHeuristic(owner, repo, pythonResults), // Combine with heuristic
+          documentation: pythonResults.aggregate.documentation_score,
+          codeStyle: this.analyzeCodeStyleHeuristic(owner, repo, pythonResults), // Combine with heuristic
+          dependencies: pythonResults.aggregate.dependency_score,
+          security: pythonResults.aggregate.security_score,
+          overallScore: pythonResults.aggregate.code_quality_score
+        };
+      } else {
+        logger.warn(`Python analysis failed, falling back to heuristics for ${owner}/${repo}`);
+        // Fall back to heuristic analysis if Python tools fail
+        return await this.analyzeCodeQualityHeuristic(owner, repo, repoData);
+      }
+
+    } catch (error) {
+      logger.warn(`Code quality analysis failed for ${owner}/${repo}, using heuristics:`, error);
+      // Return heuristic-based metrics if Python analysis fails
+      return await this.analyzeCodeQualityHeuristic(owner, repo, repoData);
+    }
+  }
+
+  /**
+   * Fallback: Analyze code quality using heuristic-based approach
+   */
+  private async analyzeCodeQualityHeuristic(owner: string, repo: string, repoData: any): Promise<CodeQualityMetrics> {
+    try {
       // Get repository contents for analysis
       const contents = await githubApiService.getRepositoryContents(owner, repo);
-      
+
       const metrics: CodeQualityMetrics = {
         complexity: this.calculateComplexity(contents),
         maintainability: this.assessMaintainability(repoData, contents),
@@ -178,10 +216,11 @@ export class AnalysisEngine {
       // Calculate overall code quality score (0-100)
       metrics.overallScore = this.calculateCodeQualityScore(metrics);
 
+      logger.info(`Heuristic code quality analysis completed for ${owner}/${repo}`);
       return metrics;
 
     } catch (error) {
-      logger.warn(`Code quality analysis failed for ${owner}/${repo}:`, error);
+      logger.warn(`Heuristic code quality analysis failed for ${owner}/${repo}:`, error);
       // Return default metrics if analysis fails
       return {
         complexity: 50,
@@ -194,6 +233,47 @@ export class AnalysisEngine {
         overallScore: 47
       };
     }
+  }
+
+  /**
+   * Estimate test coverage using combined heuristic and tool results
+   */
+  private estimateTestCoverageHeuristic(owner: string, repo: string, pythonResults: any): number {
+    let score = 0;
+
+    // Base score from Python analysis if available
+    if (pythonResults && pythonResults.code_quality) {
+      // ESLint can detect testing patterns in JS/TS
+      const eslintScore = pythonResults.code_quality['eslint']?.score || 0;
+      if (eslintScore > 0) {
+        score += eslintScore * 0.6;
+      }
+    }
+
+    // Add heuristic-based analysis
+    return Math.min(100, score);
+  }
+
+  /**
+   * Analyze code style using combined heuristic and tool results
+   */
+  private analyzeCodeStyleHeuristic(owner: string, repo: string, pythonResults: any): number {
+    let score = 40; // Base score
+
+    // Use ESLint results if available
+    if (pythonResults && pythonResults.code_quality) {
+      const eslintIssues = pythonResults.code_quality['eslint']?.issues || 0;
+      const eslintCritical = pythonResults.code_quality['eslint']?.critical_issues || 0;
+
+      // Fewer linting issues = better score
+      if (eslintIssues === 0) {
+        score += 40; // Perfect ESLint score
+      } else {
+        score -= Math.min(30, (eslintIssues * 1) + (eslintCritical * 5));
+      }
+    }
+
+    return Math.max(0, Math.min(100, score));
   }
 
   /**

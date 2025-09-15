@@ -1,0 +1,9 @@
+.github/
+docs/
+scripts/
+test-dashboard.html
+*.md
+.git
+.gitignore
+.*.md
+node_modules
